@@ -1,0 +1,57 @@
+.\" -*- nroff -*-
+.\" Copyright 2003 Richard P. Curnow
+.\" This file may be copied under the terms of version 2 of the GNU Public
+.\" License.
+
+.TH SPILL 8 "2003"
+.SH NAME
+spill \- segregated package install logical linker
+.SH SYNOPSIS
+.B spill
+[
+.B \-f
+]
+[
+.B \-n
+]
+[
+.B \-q
+]
+[
+.B \-x
+]
+.I tool_install_path
+[
+.I link_install_path
+]
+.sp
+Same again for other options
+
+.SH DESCRIPTION
+.B spill
+is a tool which creates symbolic links under a
+.I destination
+directory which point to the corresponding locations under a
+.I source
+directory.
+.sp
+The original use of
+.B spill
+is to support building programs from source with separate installation
+prefixes, so that individual programs (and versions of the same program) can be
+kept apart, yet by creating links to the installations under /usr/local, it is
+convenient to access the programs without PATH, LD_LIBRARY_PATH, MANPATH etc
+having to get out-of-hand.
+
+.SH SIMILAR PROGRAMS
+Some programs which carry out a similar function to
+.B spill
+are : stow, depot, graft, relink
+.sp
+(Apologies to other programs of this nature that I've missed out.)
+
+.SH AUTHOR
+This version of 
+.B spill
+was written by Richard Curnow <rc@rc0.org.uk>
+
