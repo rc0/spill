@@ -1,10 +1,8 @@
 /*
-  $Id: spill.c,v 1.5 2003/05/26 23:12:16 richard Exp $
-
   spill - segregated package install logical linker
 
  **********************************************************************
- * Copyright (C) Richard P. Curnow  2003
+ * Copyright (C) Richard P. Curnow  2003, 2004
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -1163,7 +1161,7 @@ static void usage(char *toolname)/*{{{*/
 {
   fprintf(stderr,
     "spill version %s - segregated package install logical linker\n"
-    "Copyright (C) Richard P. Curnow, 2003\n"
+    "Copyright (C) Richard P. Curnow  2003, 2004\n"
     "\n"
     "spill comes with ABSOLUTELY NO WARRANTY.\n"
     "This is free software, and you are welcome to redistribute it\n"
@@ -1173,6 +1171,9 @@ static void usage(char *toolname)/*{{{*/
     "Printing this help\n"
     "Syntax : spill -h\n"
     "  -h,  --help             Show this help message then exit\n"
+    "Showing just the version\n"
+    "Syntax : spill -V\n"
+    "  -V,  --version          Show the program version then exit\n"
     "\n"
     "Options for package install (default operation)\n"
     "Syntax : spill [-f] [-n] [-q] [-x]\n"
@@ -1199,7 +1200,11 @@ static void usage(char *toolname)/*{{{*/
     );
 }
 /*}}}*/
-
+static void show_version(char *toolname)/*{{{*/
+{
+  fprintf(stderr, "spill version %s\n", PROGRAM_VERSION);
+}
+/*}}}*/
 int main (int argc, char **argv)/*{{{*/
 {
 
@@ -1215,6 +1220,8 @@ int main (int argc, char **argv)/*{{{*/
   char *conflict_list_path = NULL;
   int do_soft_delete;
   int hard_delete;
+  char **next_argv;
+  int next_argc;
 
 #ifdef TEST_MAKE_REL
   printf("%s\n", make_rel("/x/y/zoo/foo", "/x/y/zaa/wib/ble"));
@@ -1243,37 +1250,76 @@ int main (int argc, char **argv)/*{{{*/
   do_soft_delete = 0;
   hard_delete = 0;
   
-  while (++argv, --argc) {
-    if ((*argv)[0] == '-') {
-      if (!strcmp(*argv, "-q") || !strcmp(*argv, "--quiet")) {
+  ++argv;
+  --argc;
+  while (argc > 0) {
+    /* Handle flags' arguments the same way tar does */
+    next_argv = argv + 1;
+    next_argc = argc - 1;
+    if (!strncmp(*argv, "--", 2)) {
+      /* Long argument */
+      if (!strcmp(*argv, "--quiet")) {
         opt.quiet = 1;
-      } else if (!strcmp(*argv, "-n") || !strcmp(*argv, "--dry_run")) {
+      } else if (!strcmp(*argv, "--dry_run")) {
         opt.dry_run = 1;
-      } else if (!strcmp(*argv, "-x") || !strcmp(*argv, "--expand")) {
+      } else if (!strcmp(*argv, "--expand")) {
         opt.expand = 1;
-      } else if (!strcmp(*argv, "-h") || !strcmp(*argv, "--help")) {
+      } else if (!strcmp(*argv, "--help")) {
         usage(argv0);
         exit(0);
-      } else if (!strcmp(*argv, "-f") || !strcmp(*argv, "--force")) {
+      } else if (!strcmp(*argv, "--version")) {
+        show_version(argv0);
+        exit(0);
+      } else if (!strcmp(*argv, "--force")) {
         opt.force = 1;
-      } else if (!strcmp(*argv, "-d") || !strcmp(*argv, "--delete")) {
+      } else if (!strcmp(*argv, "--delete")) {
         do_soft_delete = 1;
-      } else if (!strcmp(*argv, "-I") || !strcmp(*argv, "--ignore_info_dir")) {
+      } else if (!strcmp(*argv, "--ignore_info_dir")) {
         opt.ignore_info_dir = 1;
-      } else if (!strcmp(*argv, "-l")) {
-        ++argv, --argc;
-        if (*argv) {
-          conflict_list_path = new_string(*argv);
-        } else {
-          fprintf(stderr, "-l must be followed by an argument\n");
-          break;
-        }
       } else if (!strncmp(*argv,"--conflict-list=", 16)) {
         conflict_list_path = new_string(*argv + 16);
       } else {
         fprintf(stderr, "Unrecognized option '%s'\n", *argv);
       }
-
+    } else if ((*argv)[0] == '-') {
+      char *p = (*argv) + 1;
+      /* Allow more than 1 flag per option starting with '-' */
+      while (*p) {
+        switch (*p) {
+          case 'q':
+            opt.quiet = 1;
+            break;
+          case 'n':
+            opt.dry_run = 1;
+            break;
+          case 'x':
+            opt.expand = 1;
+            break;
+          case 'h':
+            usage(argv0);
+            exit(0);
+          case 'V':
+            show_version(argv0);
+            exit(0);
+          case 'f':
+            opt.force = 1;
+            break;
+          case 'd':
+            do_soft_delete = 1;
+            break;
+          case 'I':
+            opt.ignore_info_dir = 1;
+            break;
+          case 'l':
+            conflict_list_path = new_string(*next_argv);
+            next_argv++;
+            next_argc--;
+            break;
+          default:
+            fprintf(stderr, "Unrecognized option '-%c'\n", *p);
+        }
+        p++;
+      }
     } else {
       switch (bare_args) {
         case 0: src  = *argv; break;
@@ -1284,10 +1330,14 @@ int main (int argc, char **argv)/*{{{*/
       }
       ++bare_args;
     }
+
+    argc = next_argc;
+    argv = next_argv;
   }
 
   if (!src || !dest) {
-    fprintf(stderr, "Missing arguments\n");
+    fprintf(stderr, "Missing arguments : need at least <tool_install_path> and <link_install_path>\n");
+    usage(argv0);
     exit(1);
   }
   
