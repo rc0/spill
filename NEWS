@@ -1,0 +1,6 @@
+New in version 0.4
+==================
+
+* New -I command line option, to ignore info/dir files, which cause frequent
+  conflicts.
+

@@ -21,6 +21,9 @@ spill \- segregated package install logical linker
 .B \-x
 ]
 [
+.B \-I
+]
+[
 .B \-l
 .I <file>
 |
@@ -141,6 +144,27 @@ switch is specified.  This option is not the default, though, because it will
 modify the filesystem even if
 .B -n
 is specified.
+
+.sp
+.B -I
+.sp
+This flag causes the info/dir file to be ignored completely.
+.sp
+A frequent cause of installation conflicts is the info/dir file.  During the 'make install'
+phase, when the application is being installed to its own unique
+tree, one of the steps is often to add an entry to the dir file in the info
+directory, to allow the info tool to find the help pages for the application.
+Unfortunately, because the installation prefix will generally be different for
+each application, each application's tree ends up with its own dir file in its
+info subdirectory.  This inevitably creates a conflict which makes spill abort
+during the pre-install checks.
+.sp
+The
+.B -I
+switch allows this dir file to be ignored altogether (i.e. no conflict check is
+performed, and no link is created).  If you want to maintain an info/dir file
+in the directory tree where you have spill creating links, you will have to do
+it by other means.
 
 .SH EXAMPLE
 .sp

@@ -229,6 +229,7 @@ struct options {/*{{{*/
   unsigned dry_run:1;
   unsigned expand:1;
   unsigned force:1;
+  unsigned ignore_info_dir:1;
 };
 /*}}}*/
 enum source_type {/*{{{*/
@@ -1043,6 +1044,12 @@ traverse_action(const char *rel_path,
       
       if (!strcmp(de->d_name, ".")) continue;
       if (!strcmp(de->d_name, "..")) continue;
+      if (opt->ignore_info_dir &&
+          !strcmp(tail, "/info") &&
+          !strcmp(de->d_name, "dir")) {
+        continue;
+      }
+
       full_src_path = dfcaten(full_src, de->d_name);
       full_dest_path = dfcaten(full_dest, de->d_name);
 
@@ -1201,6 +1208,7 @@ static void usage(char *toolname)/*{{{*/
     "  -n,  --dry_run          Don't do install, just report potential link conflicts\n"
     "  -q,  --quiet            Be quiet when installing, only show errors\n"
     "  -x,  --expand           Expand any existing links to directories when needed\n"
+    "  -I,  --ignore_info_dir  Don't try to create a link for the info/dir file\n"
     "  -l <conflict_file>\n"
     "  --conflict-list=<file>  Filename to which conflicting destination paths are written\n"
     "\n"
@@ -1254,6 +1262,7 @@ int main (int argc, char **argv)/*{{{*/
   opt.dry_run = 0;
   opt.expand = 0;
   opt.force = 0;
+  opt.ignore_info_dir = 0;
   src = NULL; /* required. */
   dest = "."; /* pwd by default. */
   bare_args = 0;
@@ -1275,6 +1284,8 @@ int main (int argc, char **argv)/*{{{*/
         opt.force = 1;
       } else if (!strcmp(*argv, "-d") || !strcmp(*argv, "--delete")) {
         do_soft_delete = 1;
+      } else if (!strcmp(*argv, "-I") || !strcmp(*argv, "--ignore_info_dir")) {
+        opt.ignore_info_dir = 1;
       } else if (!strcmp(*argv, "-l")) {
         ++argv, --argc;
         if (*argv) {
