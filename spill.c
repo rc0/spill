@@ -1,5 +1,5 @@
 /*
-  $Id: spill.c,v 1.2 2003/05/19 22:28:20 richard Exp $
+  $Id: spill.c,v 1.3 2003/05/22 22:54:39 richard Exp $
 
   spill - segregated package install logical linker
 
@@ -44,6 +44,8 @@
 
 #include "memory.h"
 
+static FILE *conflict_file = NULL;
+  
 static char *caten(const char *s1, const char *s2)/*{{{*/
 { 
   int n1, n2, n;
@@ -445,6 +447,14 @@ static void free_string_list(struct string_list *head)/*{{{*/
   }
 }
 /*}}}*/
+static void emit_conflict(const char *full_dest_path)/*{{{*/
+{
+  if (conflict_file) {
+    fprintf(conflict_file, "%s\n", full_dest_path);
+  }
+  return;
+}
+/*}}}*/
 
 static int do_expand(const char *dir_link, struct options *opt)/*{{{*/
 {
@@ -601,6 +611,7 @@ pre_install(enum source_type src_type,
         break;
       case DT_ERROR:
         printf("!! ERROR can't examine path <%s>\n", full_dest_path);
+        emit_conflict(full_dest_path);
         result = 1;
         break;
       case DT_LINK_EXACT:
@@ -641,16 +652,19 @@ pre_install(enum source_type src_type,
         printf("!! CONFLICT <%s> linked to a non-directory in version <%s> of package <%s>\n",
                full_dest_path, other_version, other_pkg);
         result = 1; /* User has to manually resolve this one. */
+        emit_conflict(full_dest_path);
         break;
       case DT_LINK_UNKNOWN:
         printf("!! CONFLICT <%s> linked to something I don't understand\n",
                full_dest_path);
         result = 1; /* User has to manually resolve this one. */
+        emit_conflict(full_dest_path);
         break;
       case DT_OTHER:
         printf("!! CONFLICT <%s> is not a link or directory\n",
                full_dest_path);
         result = 1;
+        emit_conflict(full_dest_path);
         break;
     }
     break;
@@ -664,6 +678,7 @@ pre_install(enum source_type src_type,
       case DT_ERROR:
         printf("!! ERROR can't examine path <%s>\n", full_dest_path);
         result = 1;
+        emit_conflict(full_dest_path);
         break;
       case DT_LINK_EXACT:
         if (verbose) printf("** OK <%s> already linked to the required path\n",
@@ -684,26 +699,31 @@ pre_install(enum source_type src_type,
         printf("!! CONFLICT <%s> linked to a directory in version <%s> of package <%s>\n",
                full_dest_path, other_version, other_pkg);
         result = 1; /* User has to manually resolve this one. */
+        emit_conflict(full_dest_path);
         break;
       case DT_LINK_OTHER_FILE:
         printf("!! CONFLICT <%s> linked to a non-directory in version <%s> of package <%s>\n",
                full_dest_path, other_version, other_pkg);
         result = 1; /* User has to manually resolve this one. */
+        emit_conflict(full_dest_path);
         break;
       case DT_LINK_UNKNOWN:
         printf("!! CONFLICT <%s> linked to something I don't understand\n",
                full_dest_path);
         result = 1; /* User has to manually resolve this one. */
+        emit_conflict(full_dest_path);
         break;
       case DT_DIRECTORY:
         printf("!! CONFLICT <%s> is a directory, can't link to <%s>\n",
                full_dest_path, src_path);
         result = 1; /* User has to manually resolve this one. */
+        emit_conflict(full_dest_path);
         break;
       case DT_OTHER:
         printf("!! CONFLICT <%s> is not a link or directory, can't link to <%s>\n",
                full_dest_path, src_path);
         result = 1;
+        emit_conflict(full_dest_path);
         break;
     }
     break;
@@ -1053,11 +1073,15 @@ static void usage(char *toolname)/*{{{*/
     "  -h,  --help             Show this help message then exit\n"
     "\n"
     "Options for package install (default operation)\n"
-    "Syntax : spill [-f] [-n] [-q] [-x] <tool_install_path> [<link_install_path>]\n"
+    "Syntax : spill [-f] [-n] [-q] [-x]\n"
+    "               [-l <file> | --conflict-list=<file>\n"
+    "               <tool_install_path> [<link_install_path>]\n"
     "  -f,  --force            Attempt install even if expected subdirectories are missing\n"
     "  -n,  --dry_run          Don't do install, just report potential link conflicts\n"
     "  -q,  --quiet            Be quiet when installing, only show errors\n"
     "  -x,  --expand           Expand any existing links to directories when needed\n"
+    "  -l <conflict_file>\n"
+    "  --conflict-list=<file>  Filename to which conflicting destination paths are written\n"
     "\n"
     "<tool_install_path>       Directory specified as --prefix when package was built\n"
     "                          (relative links are created if this is given as a relative path)\n"
@@ -1078,6 +1102,7 @@ int main (int argc, char **argv)/*{{{*/
   int bare_args;
   char *argv0 = argv[0];
   char *relative_path;
+  char *conflict_list_path = NULL;
 
 #ifdef TEST_MAKE_REL
   printf("%s\n", make_rel("/x/y/zoo/foo", "/x/y/zaa/wib/ble"));
@@ -1116,6 +1141,16 @@ int main (int argc, char **argv)/*{{{*/
         exit(0);
       } else if (!strcmp(*argv, "-f") || !strcmp(*argv, "--force")) {
         opt.force = 1;
+      } else if (!strcmp(*argv, "-l")) {
+        ++argv, --argc;
+        if (*argv) {
+          conflict_list_path = new_string(*argv);
+        } else {
+          fprintf(stderr, "-l must be followed by an argument\n");
+          break;
+        }
+      } else if (!strncmp(*argv,"--conflict-list=", 16)) {
+        conflict_list_path = new_string(*argv + 16);
       } else {
         fprintf(stderr, "Unrecognized option '%s'\n", *argv);
       }
@@ -1163,9 +1198,20 @@ int main (int argc, char **argv)/*{{{*/
   extract_package_details(clean_src, &pkg, &version);
   if (!opt.quiet) fprintf(stderr, "Run pre-installing check for package <%s>, version <%s>\n", pkg, version);
 
+  if (conflict_list_path) {
+    conflict_file = fopen(conflict_list_path, "w");
+    if (!conflict_file) {
+      fprintf(stderr, "Could not open %s to write conflict list to\n", conflict_list_path);
+    }
+  }
+
   if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, pre_install)) {
     fprintf(stderr, "\nPre-install check found problems, exiting\n\n");
     exit(1);
+  }
+
+  if (conflict_file) {
+    fclose(conflict_file);
   }
 
   if (!opt.dry_run) {
