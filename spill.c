@@ -1,5 +1,5 @@
 /*
-  $Id: spill.c,v 1.3 2003/05/22 22:54:39 richard Exp $
+  $Id: spill.c,v 1.4 2003/05/22 23:06:11 richard Exp $
 
   spill - segregated package install logical linker
 
@@ -1161,12 +1161,17 @@ int main (int argc, char **argv)/*{{{*/
         case 1: dest = *argv; break;
         default:
             fprintf(stderr, "Too many command line arguments '%s'\n", *argv);
-            break;
+            exit(1);
       }
       ++bare_args;
     }
   }
 
+  if (!src || !dest) {
+    fprintf(stderr, "Missing arguments\n");
+    exit(1);
+  }
+  
   /* normalise src. */
   is_rel_src = (src[0] == '/') ? 0 : 1;
 
