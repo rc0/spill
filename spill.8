@@ -21,6 +21,9 @@ spill \- segregated package install logical linker
 .B \-x
 ]
 [
+.B -o
+]
+[
 .B \-l
 .I <file>
 |
@@ -176,6 +179,18 @@ switch is specified.  This option is not the default, though, because it will
 modify the filesystem even if
 .B -n
 is specified.
+
+.sp
+.B -o
+.sp
+This option means 'override'.  If the destination tree contains links that
+conflict with those spill wants to create to link in the new package, normally
+spill will report the conflicts and give up.  If
+.B -o
+is specified, the existing links will be removed and the links pointing to the
+new package will take their place.  This is useful if the file in the existing
+package and that in the new package provide basically the same data, but the
+one in the new package is more up to date than the existing one.
 
 .SH EXAMPLE
 .sp

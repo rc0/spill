@@ -275,6 +275,7 @@ struct options {/*{{{*/
   unsigned dry_run:1;
   unsigned expand:1;
   unsigned force:1;
+  unsigned override:1;
 };
 /*}}}*/
 enum source_type {/*{{{*/
@@ -501,6 +502,49 @@ static void emit_conflict(const char *full_dest_path)/*{{{*/
   return;
 }
 /*}}}*/
+static int files_differ(const char *name1, const char *name2)/*{{{*/
+{
+  /* Return 0 if files match, 1 if they differ, 2 if there was a problem. */
+  FILE *x1, *x2;
+  struct stat sb;
+
+  if ((stat(name1, &sb) < 0) || (!S_ISREG(sb.st_mode))) return 2;
+  if ((stat(name2, &sb) < 0) || (!S_ISREG(sb.st_mode))) return 2;
+
+  x1 = fopen(name1, "rb");
+  x2 = fopen(name2, "rb");
+  if (x1 && x2) {
+    int result = 0;
+    int c1, c2;
+    do {
+      c1 = getc(x1);
+      c2 = getc(x2);
+      if (c1 == EOF) {
+        if (c2 == EOF) {
+          result = 0;
+          break;
+        } else {
+          result = 1;
+          break;
+        }
+      } else if (c2 == EOF) {
+        result = 1;
+        break;
+      } else if (c1 != c2) {
+        result = 1;
+        break;
+      }
+    } while (1);
+    fclose(x1);
+    fclose(x2);
+    return result;
+  } else {
+    if (x1) fclose(x1);
+    if (x2) fclose(x2);
+    return 2;
+  }
+}
+/*}}}*/
 
 static int do_expand(const char *dir_link, struct options *opt)/*{{{*/
 {
@@ -695,16 +739,28 @@ pre_install(enum source_type src_type,
         if (new_relative_path) free(new_relative_path);
         break;
       case DT_LINK_OTHER_FILE:
-        printf("!! CONFLICT <%s> linked to a non-directory in version <%s> of package <%s>\n",
-               full_dest_path, other_version, other_pkg);
-        result = 1; /* User has to manually resolve this one. */
-        emit_conflict(full_dest_path);
+        if (opt->override) {
+          printf("** OVERRIDE <%s> linked to a non-directory in version <%s> of package <%s>\n",
+                full_dest_path, other_version, other_pkg);
+          result = 0;
+        } else {
+          printf("!! CONFLICT <%s> linked to a non-directory in version <%s> of package <%s>\n",
+                full_dest_path, other_version, other_pkg);
+          result = 1; /* User has to manually resolve this one. */
+          emit_conflict(full_dest_path);
+        }
         break;
       case DT_LINK_UNKNOWN:
-        printf("!! CONFLICT <%s> linked to something I don't understand\n",
-               full_dest_path);
-        result = 1; /* User has to manually resolve this one. */
-        emit_conflict(full_dest_path);
+        if (opt->override) {
+          printf("** OVERWRITE <%s> linked to something I don't understand\n",
+                full_dest_path);
+          result = 0;
+        } else {
+          printf("!! CONFLICT <%s> linked to something I don't understand\n",
+                full_dest_path);
+          result = 1; /* User has to manually resolve this one. */
+          emit_conflict(full_dest_path);
+        }
         break;
       case DT_OTHER:
         printf("!! CONFLICT <%s> is not a link or directory\n",
@@ -742,22 +798,48 @@ pre_install(enum source_type src_type,
         result = 0;
         break;
       case DT_LINK_OTHER_DIR:
-        printf("!! CONFLICT <%s> linked to a directory in version <%s> of package <%s>\n",
-               full_dest_path, other_version, other_pkg);
-        result = 1; /* User has to manually resolve this one. */
-        emit_conflict(full_dest_path);
+        if (opt->override) {
+          printf("** OVERRIDE <%s> linked to a directory in version <%s> of package <%s>\n",
+                full_dest_path, other_version, other_pkg);
+          result = 0;
+        } else {
+          printf("!! CONFLICT <%s> linked to a directory in version <%s> of package <%s>\n",
+                 full_dest_path, other_version, other_pkg);
+          result = 1; /* User has to manually resolve this one. */
+          emit_conflict(full_dest_path);
+        }
         break;
       case DT_LINK_OTHER_FILE:
-        printf("!! CONFLICT <%s> linked to a non-directory in version <%s> of package <%s>\n",
-               full_dest_path, other_version, other_pkg);
-        result = 1; /* User has to manually resolve this one. */
-        emit_conflict(full_dest_path);
+        if (opt->override) {
+          int d = files_differ(full_dest_path, src_path);
+          printf("** OVERRIDE <%s> linked to a non-directory in version <%s> of package <%s>%s\n",
+                full_dest_path, other_version, other_pkg,
+                (d == 0) ? " (content identical)" : 
+                (d == 1) ? " (content differs)" : ""
+                );
+          result = 0;
+        } else {
+          printf("!! CONFLICT <%s> linked to a non-directory in version <%s> of package <%s>\n",
+                 full_dest_path, other_version, other_pkg);
+          result = 1; /* User has to manually resolve this one. */
+          emit_conflict(full_dest_path);
+        }
         break;
       case DT_LINK_UNKNOWN:
-        printf("!! CONFLICT <%s> linked to something I don't understand\n",
-               full_dest_path);
-        result = 1; /* User has to manually resolve this one. */
-        emit_conflict(full_dest_path);
+        if (opt->override) {
+          int d = files_differ(full_dest_path, src_path);
+          printf("** OVERWRITE <%s> linked to something I don't understand%s\n",
+                full_dest_path,
+                (d == 0) ? " (content identical)" : 
+                (d == 1) ? " (content differs)" : ""
+                );
+          result = 0;
+        } else {
+          printf("!! CONFLICT <%s> linked to something I don't understand\n",
+                 full_dest_path);
+          result = 1; /* User has to manually resolve this one. */
+          emit_conflict(full_dest_path);
+        }
         break;
       case DT_DIRECTORY:
         printf("!! CONFLICT <%s> is a directory, can't link to <%s>\n",
@@ -872,10 +954,29 @@ do_install (enum source_type src_type,
         free(new_relative_path);
         free(linked_path);
         return result;
-      case DT_ERROR:
       case DT_LINK_OTHER_DIR:
       case DT_LINK_OTHER_FILE:
       case DT_LINK_UNKNOWN:
+        if (opt->override) {
+          if (unlink(full_dest_path) < 0) {
+            printf("!! FAILED : can't remove old link <%s> : <%s>\n", full_dest_path, strerror(errno));
+            free(linked_path);
+            return 1;
+          } else {
+            if (symlink(linked_path, full_dest_path) < 0) {
+              printf("!! FAILED : can't create override symlink from <%s> to <%s> : %s\n",
+                     full_dest_path, linked_path, strerror(errno));
+              free(linked_path);
+              return 1;
+            }
+            if (!opt->quiet) printf("** NEWDIRLINK (OVERRIDE) from <%s> to <%s>\n", full_dest_path, linked_path);
+            free(linked_path);
+            return 0;
+          }
+        } else {
+          /* No override, fall through */
+        }
+      case DT_ERROR:
       case DT_OTHER:
         printf("!! CALAMITY : I shouldn't be here, my pre-install check should have failed (problem path=<%s>)!\n",
                full_dest_path);
@@ -919,11 +1020,30 @@ do_install (enum source_type src_type,
         }
         free(linked_path);
         return 0;
-      case DT_ERROR:
       case DT_LINK_OTHER_DIR:
       case DT_LINK_OTHER_FILE:
       case DT_LINK_UNKNOWN:
+        if (opt->override) {
+          if (unlink(full_dest_path) < 0) {
+            printf("!! FAILED : can't remove old link <%s> : <%s>\n", full_dest_path, strerror(errno));
+            free(linked_path);
+            return 1;
+          } else {
+            if (symlink(linked_path, full_dest_path) < 0) {
+              printf("!! FAILED : can't create override symlink from <%s> to <%s> : %s\n",
+                     full_dest_path, linked_path, strerror(errno));
+              free(linked_path);
+              return 1;
+            }
+            if (!opt->quiet) printf("** NEWLINK (OVERRIDE) from <%s> to <%s>\n", full_dest_path, linked_path);
+            free(linked_path);
+            return 0;
+          }
+        } else {
+          /* No override, fall through */
+        }
       case DT_DIRECTORY:
+      case DT_ERROR:
       case DT_OTHER:
         printf("!! CALAMITY : I shouldn't be here, my pre-install check should have failed (problem path=<%s>)!\n",
                 full_dest_path);
@@ -1225,6 +1345,7 @@ static void usage(char *toolname)/*{{{*/
     "  -n,  --dry_run          Don't do install, just report potential link conflicts\n"
     "  -q,  --quiet            Be quiet when installing, only show errors\n"
     "  -x,  --expand           Expand any existing links to directories when needed\n"
+    "  -o,  --override         Override any existing links that conflict with the new package\n"
     "  -l <conflict_file>\n"
     "  --conflict-list=<file>  Filename to which conflicting destination paths are written\n"
     "\n"
@@ -1285,6 +1406,7 @@ int main (int argc, char **argv)/*{{{*/
   opt.dry_run = 0;
   opt.expand = 0;
   opt.force = 0;
+  opt.override = 0;
   src = NULL; /* required. */
   dest = "."; /* pwd by default. */
   bare_args = 0;
@@ -1315,6 +1437,8 @@ int main (int argc, char **argv)/*{{{*/
         opt.force = 1;
       } else if (!strcmp(*argv, "--delete")) {
         do_soft_delete = 1;
+      } else if (!strcmp(*argv, "--override")) {
+        opt.override = 1;
       } else if (!strncmp(*argv,"--conflict-list=", 16)) {
         conflict_list_path = new_string(*argv + 16);
       } else {
@@ -1345,6 +1469,9 @@ int main (int argc, char **argv)/*{{{*/
             break;
           case 'd':
             do_soft_delete = 1;
+            break;
+          case 'o':
+            opt.override = 1;
             break;
           case 'l':
             conflict_list_path = new_string(*next_argv);

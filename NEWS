@@ -6,6 +6,8 @@ New in version 0.5
 * Remove -I option.  Replaced by the more flexible solution of allowing
   arbitrarily many ignore_path arguments on the command line, to allow other
   conflicts besides info/dir to be handled.
+* Add -o command switch to allow links to new package to override those to
+  an existing package when conflicts arise.
 
 New in version 0.4
 ==================
