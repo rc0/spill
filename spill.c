@@ -1,5 +1,5 @@
 /*
-  $Id: spill.c,v 1.4 2003/05/22 23:06:11 richard Exp $
+  $Id: spill.c,v 1.5 2003/05/26 23:12:16 richard Exp $
 
   spill - segregated package install logical linker
 
@@ -891,6 +891,127 @@ do_install (enum source_type src_type,
   return 1; /* shouldn't get here. */
 }
 /*}}}*/
+
+/*{{{ static int soft_delete */
+static int
+soft_delete(enum source_type src_type,
+            enum dest_type dest_type,
+
+            const char *relative_path,
+
+            const char *full_src_path,
+            const char *full_dest_path,
+
+            const char *src,
+            const char *dest,
+            const char *taildir,
+            const char *tailfile,
+
+            const char *pkg,
+            const char *version,
+
+            const char *other_pkg,
+            const char *other_version,
+
+            struct options *opt
+            )
+{
+
+  /* Regarding return status:
+     1 indicates error : there was a link to be removed, but we couldn't
+       remove it.
+     0 otherwise. */
+  char *new_tail;
+  char *new_relative_path;
+  char *linked_path;
+  int result;
+  
+  if (relative_path) {
+    char *tail = dfcaten(taildir, tailfile);
+    linked_path = caten(relative_path, tail);
+    free(tail);
+  } else {
+    linked_path = new_string(full_src_path);
+  }
+  
+  switch (src_type) {
+  case ST_ERROR:
+    fprintf(stderr, "Could not examine source <%s>!\n", full_src_path);
+    free(linked_path);
+    return 0;
+    break;
+  case ST_DIR:
+    switch (dest_type) {
+      case DT_LINK_EXACT:
+        free(linked_path);
+        if (unlink(full_dest_path) < 0) {
+          printf("!! FAILED : unable to remove link at <%s>\n", full_dest_path);
+          return 1;
+        } else {
+          if (!opt->quiet) printf("** SUCCESS : removed link at <%s>\n", full_dest_path);
+          return 0;
+        }
+
+      case DT_DIRECTORY:
+        new_tail = dfcaten(taildir, tailfile);
+        new_relative_path = relative_path ? dfcaten("..", relative_path) : NULL;
+        result = traverse_action(new_relative_path, src, dest, pkg, version, new_tail, opt, soft_delete);
+        free(new_tail);
+        free(new_relative_path);
+        free(linked_path);
+        return result;
+
+      case DT_VOID:
+      case DT_LINK_SAME_SAME:
+      case DT_LINK_SAME_OTHER:
+      case DT_ERROR:
+      case DT_LINK_OTHER_DIR:
+      case DT_LINK_OTHER_FILE:
+      case DT_LINK_UNKNOWN:
+      case DT_OTHER:
+        if (!opt->quiet) {
+          printf("!! WARNING : expected link not found at <%s>\n", full_dest_path);
+        }
+        free(linked_path);
+        return 0;
+        
+    }
+    break;
+
+  case ST_OTHER:
+    switch (dest_type) {
+      case DT_LINK_EXACT:
+        free(linked_path);
+        if (unlink(full_dest_path) < 0) {
+          printf("!! FAILED : unable to remove link at <%s>\n", full_dest_path);
+          return 1;
+        } else {
+          if (!opt->quiet) printf("** SUCCESS : removed link at <%s>\n", full_dest_path);
+          return 0;
+        }
+
+      case DT_VOID:
+      case DT_LINK_SAME_SAME:
+      case DT_LINK_SAME_OTHER:
+      case DT_ERROR:
+      case DT_LINK_OTHER_DIR:
+      case DT_LINK_OTHER_FILE:
+      case DT_LINK_UNKNOWN:
+      case DT_DIRECTORY:
+      case DT_OTHER:
+        if (!opt->quiet) {
+          printf("!! WARNING : expected link not found at <%s>\n", full_dest_path);
+        }
+        free(linked_path);
+        return 0;
+    }
+    break;
+  }
+  assert(0);
+  free(linked_path);
+  return 1; /* shouldn't get here. */
+}
+/*}}}*/
 /* {{{ static int traverse_action */
 static int
 traverse_action(const char *rel_path,
@@ -1086,6 +1207,13 @@ static void usage(char *toolname)/*{{{*/
     "<tool_install_path>       Directory specified as --prefix when package was built\n"
     "                          (relative links are created if this is given as a relative path)\n"
     "<link_install_path>       Base directory where links are created (e.g. /usr) (default is \".\")\n"
+    "\n"
+    "Options for package removal\n"
+    "Syntax : spill -d [-q] <tool_install_path> [<link_install_path>]\n"
+    "  -q,  --quiet            Be quiet, only show errors\n"
+    "<tool_install_path> and <link_install_path> as above.\n"
+    "\n"
+
     );
 }
 /*}}}*/
@@ -1103,6 +1231,8 @@ int main (int argc, char **argv)/*{{{*/
   char *argv0 = argv[0];
   char *relative_path;
   char *conflict_list_path = NULL;
+  int do_soft_delete;
+  int hard_delete;
 
 #ifdef TEST_MAKE_REL
   printf("%s\n", make_rel("/x/y/zoo/foo", "/x/y/zaa/wib/ble"));
@@ -1127,7 +1257,9 @@ int main (int argc, char **argv)/*{{{*/
   src = NULL; /* required. */
   dest = "."; /* pwd by default. */
   bare_args = 0;
-
+  do_soft_delete = 0;
+  hard_delete = 0;
+  
   while (++argv, --argc) {
     if ((*argv)[0] == '-') {
       if (!strcmp(*argv, "-q") || !strcmp(*argv, "--quiet")) {
@@ -1141,6 +1273,8 @@ int main (int argc, char **argv)/*{{{*/
         exit(0);
       } else if (!strcmp(*argv, "-f") || !strcmp(*argv, "--force")) {
         opt.force = 1;
+      } else if (!strcmp(*argv, "-d") || !strcmp(*argv, "--delete")) {
+        do_soft_delete = 1;
       } else if (!strcmp(*argv, "-l")) {
         ++argv, --argc;
         if (*argv) {
@@ -1200,30 +1334,42 @@ int main (int argc, char **argv)/*{{{*/
   }
 
   /* Extract package and version for new package. */
+
   extract_package_details(clean_src, &pkg, &version);
-  if (!opt.quiet) fprintf(stderr, "Run pre-installing check for package <%s>, version <%s>\n", pkg, version);
 
-  if (conflict_list_path) {
-    conflict_file = fopen(conflict_list_path, "w");
-    if (!conflict_file) {
-      fprintf(stderr, "Could not open %s to write conflict list to\n", conflict_list_path);
+  if (do_soft_delete) {
+    /* Delete the links to the 'source' package from the destination tree,
+       assuming the 'source' tree still exists intact.  */
+
+    traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, soft_delete);
+
+  } else {
+    /* Normal mode - package installation */
+  
+    if (!opt.quiet) fprintf(stderr, "Run pre-installing check for package <%s>, version <%s>\n", pkg, version);
+
+    if (conflict_list_path) {
+      conflict_file = fopen(conflict_list_path, "w");
+      if (!conflict_file) {
+        fprintf(stderr, "Could not open %s to write conflict list to\n", conflict_list_path);
+      }
     }
-  }
 
-  if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, pre_install)) {
-    fprintf(stderr, "\nPre-install check found problems, exiting\n\n");
-    exit(1);
-  }
-
-  if (conflict_file) {
-    fclose(conflict_file);
-  }
-
-  if (!opt.dry_run) {
-    if (!opt.quiet) fprintf(stderr, "\nPre-install checks OK, proceeding to install\n\n");
-    if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, do_install)) {
-      fprintf(stderr, "\nProblems found whilst installing : package may only be part-installed\n\n");
+    if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, pre_install)) {
+      fprintf(stderr, "\nPre-install check found problems, exiting\n\n");
       exit(1);
+    }
+
+    if (conflict_file) {
+      fclose(conflict_file);
+    }
+
+    if (!opt.dry_run) {
+      if (!opt.quiet) fprintf(stderr, "\nPre-install checks OK, proceeding to install\n\n");
+      if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, do_install)) {
+        fprintf(stderr, "\nProblems found whilst installing : package may only be part-installed\n\n");
+        exit(1);
+      }
     }
   }
 
