@@ -1,3 +1,12 @@
+New in version 0.5
+==================
+
+* -V command line option to show program version
+* Multiple single-character flags allowed per command line argument
+* Remove -I option.  Replaced by the more flexible solution of allowing
+  arbitrarily many ignore_path arguments on the command line, to allow other
+  conflicts besides info/dir to be handled.
+
 New in version 0.4
 ==================
 

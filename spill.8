@@ -21,9 +21,6 @@ spill \- segregated package install logical linker
 .B \-x
 ]
 [
-.B \-I
-]
-[
 .B \-l
 .I <file>
 |
@@ -32,6 +29,9 @@ spill \- segregated package install logical linker
 .I tool_install_path
 [
 .I link_install_path
+]
+[
+.I ignore_path...
 ]
 
 .SH SYNOPSIS - Removal
@@ -105,6 +105,29 @@ This is the head of the directory tree where the links should be placed.  If
 omitted, it defaults to the current directory.
 
 .sp
+.B ignore_path...
+.sp
+This is a space separated list of paths to ignore in the linking process.  Each
+path is relative to
+.B tool_install_path
+.sp
+A frequent problem when using spill is the dir file in the info subdirectory.
+The make install process typically creates one of these files in every tool
+installation, and these conflict when spill tries to create links.  (In the
+world the designers of info envisaged, everything installs to a common
+directory tree and there is a single info/dir file that gathers the topics for
+all of the tools.)
+.sp
+To ignore the conflicting info/dir file,
+.B spill
+would be invoked like this:
+.sp
+    spill /apps/foo/1.0 /usr/local info/dir
+.sp
+Note, if one of the ignored relative paths is a directory, everything under
+that directory is ignored too.
+
+.sp
 .B -f
 .sp
 Normally,
@@ -153,27 +176,6 @@ switch is specified.  This option is not the default, though, because it will
 modify the filesystem even if
 .B -n
 is specified.
-
-.sp
-.B -I
-.sp
-This flag causes the info/dir file to be ignored completely.
-.sp
-A frequent cause of installation conflicts is the info/dir file.  During the 'make install'
-phase, when the application is being installed to its own unique
-tree, one of the steps is often to add an entry to the dir file in the info
-directory, to allow the info tool to find the help pages for the application.
-Unfortunately, because the installation prefix will generally be different for
-each application, each application's tree ends up with its own dir file in its
-info subdirectory.  This inevitably creates a conflict which makes spill abort
-during the pre-install checks.
-.sp
-The
-.B -I
-switch allows this dir file to be ignored altogether (i.e. no conflict check is
-performed, and no link is created).  If you want to maintain an info/dir file
-in the directory tree where you have spill creating links, you will have to do
-it by other means.
 
 .SH EXAMPLE
 .sp

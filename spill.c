@@ -43,6 +43,13 @@
 #include "memory.h"
 #include "version.h"
 
+struct string_node {/*{{{*/
+  struct string_node *next;
+  char *string;
+};
+/*}}}*/
+
+static struct string_node *ignores = NULL;
 static FILE *conflict_file = NULL;
   
 static char *caten(const char *s1, const char *s2)/*{{{*/
@@ -223,12 +230,51 @@ static void extract_package_details(const char *src, char **pkg, char **version)
 }
 /*}}}*/
 
+static void add_ignore(char *path)/*{{{*/
+{
+  struct string_node *n;
+  n = new(struct string_node);
+  n->string = new_string(path);
+  n->next = ignores;
+  ignores = n;
+}
+/*}}}*/
+static int check_ignore(const char *head, const char *tail)/*{{{*/
+{
+  int len;
+  char *path;
+  struct string_node *a;
+  int result;
+  
+  /* Early out */
+  if (!ignores) return 0;
+  
+  /* 'head' starts with a '/' that we ignore.  We put a '/' between head and tail.  +1 for the terminating null. */
+  len = strlen(head) + strlen(tail) + 1;
+  path = new_array(char, len);
+  strcpy(path, head + 1);
+  strcat(path, "/");
+  strcat(path, tail);
+  result = 0;
+  a = ignores;
+  do {
+    if (!strcmp(a->string, path)) {
+      result = 1;
+      break;
+    }
+    a = a->next;
+  } while (a);
+  
+  free(path);
+  return result;
+}
+/*}}}*/
+
 struct options {/*{{{*/
   unsigned quiet:1;
   unsigned dry_run:1;
   unsigned expand:1;
   unsigned force:1;
-  unsigned ignore_info_dir:1;
 };
 /*}}}*/
 enum source_type {/*{{{*/
@@ -1043,11 +1089,7 @@ traverse_action(const char *rel_path,
       
       if (!strcmp(de->d_name, ".")) continue;
       if (!strcmp(de->d_name, "..")) continue;
-      if (opt->ignore_info_dir &&
-          !strcmp(tail, "/info") &&
-          !strcmp(de->d_name, "dir")) {
-        continue;
-      }
+      if (check_ignore(tail, de->d_name)) continue;
 
       full_src_path = dfcaten(full_src, de->d_name);
       full_dest_path = dfcaten(full_dest, de->d_name);
@@ -1178,18 +1220,18 @@ static void usage(char *toolname)/*{{{*/
     "Options for package install (default operation)\n"
     "Syntax : spill [-f] [-n] [-q] [-x]\n"
     "               [-l <file> | --conflict-list=<file>\n"
-    "               <tool_install_path> [<link_install_path>]\n"
+    "               <tool_install_path> [<link_install_path>] [<ignore_path>...]\n"
     "  -f,  --force            Attempt install even if expected subdirectories are missing\n"
     "  -n,  --dry_run          Don't do install, just report potential link conflicts\n"
     "  -q,  --quiet            Be quiet when installing, only show errors\n"
     "  -x,  --expand           Expand any existing links to directories when needed\n"
-    "  -I,  --ignore_info_dir  Don't try to create a link for the info/dir file\n"
     "  -l <conflict_file>\n"
     "  --conflict-list=<file>  Filename to which conflicting destination paths are written\n"
     "\n"
     "<tool_install_path>       Directory specified as --prefix when package was built\n"
     "                          (relative links are created if this is given as a relative path)\n"
     "<link_install_path>       Base directory where links are created (e.g. /usr) (default is \".\")\n"
+    "<ignore_path>...          Space-separated list of relative paths not to be linked\n"
     "\n"
     "Options for package removal\n"
     "Syntax : spill -d [-q] <tool_install_path> [<link_install_path>]\n"
@@ -1243,7 +1285,6 @@ int main (int argc, char **argv)/*{{{*/
   opt.dry_run = 0;
   opt.expand = 0;
   opt.force = 0;
-  opt.ignore_info_dir = 0;
   src = NULL; /* required. */
   dest = "."; /* pwd by default. */
   bare_args = 0;
@@ -1274,8 +1315,6 @@ int main (int argc, char **argv)/*{{{*/
         opt.force = 1;
       } else if (!strcmp(*argv, "--delete")) {
         do_soft_delete = 1;
-      } else if (!strcmp(*argv, "--ignore_info_dir")) {
-        opt.ignore_info_dir = 1;
       } else if (!strncmp(*argv,"--conflict-list=", 16)) {
         conflict_list_path = new_string(*argv + 16);
       } else {
@@ -1307,9 +1346,6 @@ int main (int argc, char **argv)/*{{{*/
           case 'd':
             do_soft_delete = 1;
             break;
-          case 'I':
-            opt.ignore_info_dir = 1;
-            break;
           case 'l':
             conflict_list_path = new_string(*next_argv);
             next_argv++;
@@ -1325,8 +1361,8 @@ int main (int argc, char **argv)/*{{{*/
         case 0: src  = *argv; break;
         case 1: dest = *argv; break;
         default:
-            fprintf(stderr, "Too many command line arguments '%s'\n", *argv);
-            exit(1);
+          add_ignore(*argv);
+          break;
       }
       ++bare_args;
     }
