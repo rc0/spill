@@ -1,5 +1,5 @@
 /*
-  $Id: spill.c,v 1.1 2003/05/19 22:13:24 richard Exp $
+  $Id: spill.c,v 1.2 2003/05/19 22:28:20 richard Exp $
 
   spill - segregated package install logical linker
 
@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <errno.h>
 #include <assert.h>
@@ -1009,34 +1010,31 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
 }
 /*}}}*/
 
-static char *version = NULL;
-
 static char *get_version(void)/*{{{*/
 {
-  static char url[] = "$URL: file://localhost/svn/spill/trunk/spill.c $";
-  if (!version) {
-    char *p, *e, *s;
-    p = url;
-    while (*p) p++;
-    while ((p >= url) && (*p != '/')) p--;
-    if (p < url) {
-      goto bad_url;
+  static char buffer[256];
+  static char cvs_version[] = "$Name:  $";
+  char *p, *q;
+  for (p=cvs_version; *p; p++) {
+    if (*p == ':') {
+      p++;
+      break;
     }
-    e = p--;
-    while ((p >= url) && (*p != '/')) p--;
-    if (p < url) {
-      goto bad_url;
-    }
-    s = p+1;
-    version = new_array(char, 1 + e - s);
-    memcpy(version, s, e - s);
-    version[e - s] = '\0';
   }
-  return version;
+  while (isspace(*p)) p++;
+  if (*p == '$') {
+    strcpy(buffer, "development version");
+  } else {
+    for (q=buffer; *p && *p != '$'; p++) {
+      if (!isspace(*p)) {
+        if (*p == '_') *q++ = '.';
+        else *q++ = *p;
+      }
+    }
+    *q = 0;
+  }
 
-bad_url:
-  version = new_string("<UNKNOWN>");
-  return version;
+  return buffer;
 }
 /*}}}*/
 static void usage(char *toolname)/*{{{*/
