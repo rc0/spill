@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 
 #include "memory.h"
+#include "version.h"
 
 static FILE *conflict_file = NULL;
   
@@ -1158,33 +1159,6 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
 }
 /*}}}*/
 
-static char *get_version(void)/*{{{*/
-{
-  static char buffer[256];
-  static char cvs_version[] = "$Name:  $";
-  char *p, *q;
-  for (p=cvs_version; *p; p++) {
-    if (*p == ':') {
-      p++;
-      break;
-    }
-  }
-  while (isspace(*p)) p++;
-  if (*p == '$') {
-    strcpy(buffer, "development version");
-  } else {
-    for (q=buffer; *p && *p != '$'; p++) {
-      if (!isspace(*p)) {
-        if (*p == '_') *q++ = '.';
-        else *q++ = *p;
-      }
-    }
-    *q = 0;
-  }
-
-  return buffer;
-}
-/*}}}*/
 static void usage(char *toolname)/*{{{*/
 {
   fprintf(stderr,
@@ -1193,7 +1167,7 @@ static void usage(char *toolname)/*{{{*/
     "\n"
     "spill comes with ABSOLUTELY NO WARRANTY.\n"
     "This is free software, and you are welcome to redistribute it\n"
-    "under certain conditions; see the GNU General Public License for details.\n", get_version());
+    "under certain conditions; see the GNU General Public License for details.\n", PROGRAM_VERSION);
   fprintf(stderr,
     "\n"
     "Printing this help\n"
