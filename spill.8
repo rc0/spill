@@ -6,7 +6,7 @@
 .TH SPILL 8 "2003"
 .SH NAME
 spill \- segregated package install logical linker
-.SH SYNOPSIS
+.SH SYNOPSIS - Installation
 .B spill
 [
 .B \-f
@@ -30,6 +30,17 @@ spill \- segregated package install logical linker
 [
 .I link_install_path
 ]
+
+.SH SYNOPSIS - Removal
+.B spill
+[
+.B \-q
+]
+.I tool_install_path
+[
+.I link_install_path
+]
+
 .sp
 Same again for other options
 
@@ -48,6 +59,111 @@ prefixes, so that individual programs (and versions of the same program) can be
 kept apart, yet by creating links to the installations under /usr/local, it is
 convenient to access the programs without PATH, LD_LIBRARY_PATH, MANPATH etc
 having to get out-of-hand.
+.sp
+The tool can also be used to remove a set of links to a package installed
+elsewhere.
+
+.SH ARGUMENTS
+.B tool_install_path
+.sp
+This is the head of the directory tree at which the package is installed.
+.sp
+If an absolute path is given, absolute symbolic links will be created.
+.sp
+If a relative path is given, relative symbolic links will be created.  Note,
+the path should be relative to the current directory,
+.B not
+to the destination (link_install_path) directory.
+.sp
+.B spill
+assumes that the final two directory components of tool_install_path are the
+package name, and the package version, in that order.  For example, suppose
+binary installations are placed under /apps.  Version 1.1 of a package called
+foobar would be installed under /apps/foobar/1.1.  So there would be
+directories like /apps/foobar/1.1/bin, /apps/foobar/1.1/man/man1 etc.  This
+approach allows
+.B spill
+to auto-detect when an existing package is being upgraded by a newer version,
+and not complain about links being replaced in such circumstances.
+
+.sp
+.B link_install_path
+.sp
+This is the head of the directory tree where the links should be placed.  If
+omitted, it defaults to the current directory.
+
+.sp
+.B -f
+.sp
+Normally,
+.B spill
+will check that tool_install_path and link_install_path each have at least one
+of the following subdirectories : bin, lib or sbin.  This provides a sanity
+check against user errors in specifying the directories on the command line.
+The
+.B -f
+option allows this checking to be overridden.
+
+.sp
+.B -n
+.sp
+This option does a 'dry-run', i.e. reports on any potential install conflicts
+then stops without actually creating any links.
+
+.sp
+.B -q
+.sp
+This option means 'quiet'.  Only errors will be reported.  Normally, successful
+link creations are reported too.
+
+.sp
+.B -x
+.sp
+This option means 'expand'.  Suppose a single package called wibble has already
+been linked under /usr/local using 
+.B spill.
+The directory /usr/local/man would
+probably be linked to something like /apps/wibble/1.0/man.  Now, suppose
+.B spill
+is called to install package foobar under /usr/local, and this package has a
+manpage also.
+.B spill
+wouldn't be able to link /usr/local/man to
+/apps/foobar/1.1/man, because that would break access to wibble's manpage.  In
+this case, a "NEEDEXPN" error will be reported during the pre-installation
+check.  This means that the symbolic links to directories need to be
+"expanded", i.e. replaced by directories containing links to the contents of
+the directory that they used to be linked to.
+.B spill
+can perform such expansions automatically if the
+.B -x
+switch is specified.  This option is not the default, though, because it will
+modify the filesystem even if
+.B -n
+is specified.
+
+.SH EXAMPLE
+.sp
+Suppose you want to build and install a package called foobar, version 1.1.
+The steps you might take would be
+
+.br
+tar xzvf foobar-1.1.tar.gz
+.br
+cd foobar-1.1
+.br
+./configure --prefix=/apps/foobar/1.1
+.br
+make
+.br
+make install
+.br
+spill /apps/foobar/1.1 /usr/local
+
+.SH OTHER POSSIBILITIES
+
+.sp
+To be written
 
 .SH SIMILAR PROGRAMS
 Some programs which carry out a similar function to
