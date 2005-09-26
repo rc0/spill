@@ -43,6 +43,8 @@
 #include "memory.h"
 #include "version.h"
 
+#define RECORD_DIR ".spill"
+
 struct string_node {/*{{{*/
   struct string_node *next;
   char *string;
@@ -1319,6 +1321,64 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
 }
 /*}}}*/
 
+/*{{{ record_install() */
+static void record_install(const char *src_path,
+    const char *dest_path,
+    const char *pkg,
+    const char *version)
+{
+  char *linkpath;
+  char *record_dir;
+  struct stat sb;
+  int status;
+
+  record_dir = dfcaten(dest_path, RECORD_DIR);
+  status = stat(record_dir, &sb);
+  if (status < 0) {
+    if (mkdir(record_dir, 0755) < 0) {
+      fprintf(stderr, "Cannot create %s.\nThe installed version of %s has not been recorded.\n", record_dir, pkg);
+      exit(1);
+    }
+  }
+  linkpath = dfcaten3(dest_path, RECORD_DIR, pkg);
+  unlink(linkpath);
+
+  if (symlink(src_path, linkpath) < 0) {
+    fprintf(stderr, "Cannot create %s.\nThe installed version of %s has not been recorded.\n", linkpath, pkg);
+  }
+
+  free(record_dir);
+  free(linkpath);
+  return;
+}
+/*}}}*/
+/*{{{ remove_current_install() */
+static void remove_current_install(const char *relative_path,
+    const char *src_path, 
+    const char *dest_path,
+    const char *pkg,
+    const char *version,
+    const char *tail,
+    struct options *opt)
+{
+  char *linkpath;
+  char target[1024];
+  int status;
+  linkpath = dfcaten3(dest_path, RECORD_DIR, pkg);
+  status = readlink(linkpath, target, sizeof(target));
+  if (status < 0) {
+    fprintf(stderr, "Failed to read target of <%s> : can't remove old version.\n", linkpath);
+    goto get_out;
+  }
+  target[status] = 0; /* Null terminate */
+
+  traverse_action(NULL, target, dest_path, pkg, version, tail, opt, soft_delete);
+  unlink(linkpath);
+get_out:
+  free(linkpath);
+
+}
+/*}}}*/
 static void usage(char *toolname)/*{{{*/
 {
   fprintf(stderr,
@@ -1341,7 +1401,8 @@ static void usage(char *toolname)/*{{{*/
     "Syntax : spill [-f] [-n] [-q] [-x]\n"
     "               [-l <file> | --conflict-list=<file>\n"
     "               <tool_install_path> [<link_install_path>] [<ignore_path>...]\n"
-    "  -f,  --force            Attempt install even if expected subdirectories are missing\n"
+    "  -f,  --force            Attempt install even if expected subdirectories (bin,sbin,lib) are missing\n"
+    "  -u,  --upgrade          Clean out links to older version of the same package before installing\n"
     "  -n,  --dry_run          Don't do install, just report potential link conflicts\n"
     "  -q,  --quiet            Be quiet when installing, only show errors\n"
     "  -x,  --expand           Expand any existing links to directories when needed\n"
@@ -1382,6 +1443,7 @@ int main (int argc, char **argv)/*{{{*/
   char *relative_path;
   char *conflict_list_path = NULL;
   int do_soft_delete;
+  int do_upgrade;
   int hard_delete;
   char **next_argv;
   int next_argc;
@@ -1411,6 +1473,7 @@ int main (int argc, char **argv)/*{{{*/
   dest = "."; /* pwd by default. */
   bare_args = 0;
   do_soft_delete = 0;
+  do_upgrade = 0;
   hard_delete = 0;
   
   ++argv;
@@ -1437,6 +1500,8 @@ int main (int argc, char **argv)/*{{{*/
         opt.force = 1;
       } else if (!strcmp(*argv, "--delete")) {
         do_soft_delete = 1;
+      } else if (!strcmp(*argv, "--upgrade")) {
+        do_upgrade = 1;
       } else if (!strcmp(*argv, "--override")) {
         opt.override = 1;
       } else if (!strncmp(*argv,"--conflict-list=", 16)) {
@@ -1469,6 +1534,9 @@ int main (int argc, char **argv)/*{{{*/
             break;
           case 'd':
             do_soft_delete = 1;
+            break;
+          case 'u':
+            do_upgrade = 1;
             break;
           case 'o':
             opt.override = 1;
@@ -1563,11 +1631,18 @@ int main (int argc, char **argv)/*{{{*/
     }
 
     if (!opt.dry_run) {
+      if (do_upgrade) {
+        if (!opt.quiet) {
+          fprintf(stderr, "\nPre-install checks OK, removing old version\n\n");
+        }
+        remove_current_install(NULL, clean_src, clean_dest, pkg, version, "", &opt);
+      }
       if (!opt.quiet) fprintf(stderr, "\nPre-install checks OK, proceeding to install\n\n");
       if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, do_install)) {
         fprintf(stderr, "\nProblems found whilst installing : package may only be part-installed\n\n");
         exit(1);
       }
+      record_install(clean_src, clean_dest, pkg, version);
     }
   }
 

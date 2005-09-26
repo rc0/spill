@@ -21,6 +21,9 @@ spill \- segregated package install logical linker
 .B \-x
 ]
 [
+.B \-u
+]
+[
 .B -o
 ]
 [
@@ -153,6 +156,14 @@ then stops without actually creating any links.
 .sp
 This option means 'quiet'.  Only errors will be reported.  Normally, successful
 link creations are reported too.
+
+.sp
+.B -u
+.sp
+This option means 'upgrade'.  When installing links for a package, this option
+causes spill to remove links to an older version of the same package first.
+This is a good idea if the files in the new package have changed their names
+compared to the older version, as it avoids stale links being left around.
 
 .sp
 .B -x
