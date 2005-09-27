@@ -1322,7 +1322,8 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
 /*}}}*/
 
 /*{{{ record_install() */
-static void record_install(const char *src_path,
+static void record_install(const char *relative_path,
+    const char *src_path,
     const char *dest_path,
     const char *pkg,
     const char *version)
@@ -1343,7 +1344,7 @@ static void record_install(const char *src_path,
   linkpath = dfcaten3(dest_path, RECORD_DIR, pkg);
   unlink(linkpath);
 
-  if (symlink(src_path, linkpath) < 0) {
+  if (symlink(relative_path ? relative_path : src_path, linkpath) < 0) {
     fprintf(stderr, "Cannot create %s.\nThe installed version of %s has not been recorded.\n", linkpath, pkg);
   }
 
@@ -1371,8 +1372,18 @@ static void remove_current_install(const char *relative_path,
     goto get_out;
   }
   target[status] = 0; /* Null terminate */
+  if (target[0] == '/') {
+    /* path is absolute */
+    traverse_action(NULL, target, dest_path, pkg, version, tail, opt, soft_delete);
+  } else {
+    /* path is relative */
+    char *install_area;
+    install_area = dfcaten(dest_path, target);
+    traverse_action(target, install_area, dest_path, pkg, version, tail, opt, soft_delete);
+    free(install_area);
+  }
 
-  traverse_action(NULL, target, dest_path, pkg, version, tail, opt, soft_delete);
+
   unlink(linkpath);
 get_out:
   free(linkpath);
@@ -1642,7 +1653,7 @@ int main (int argc, char **argv)/*{{{*/
         fprintf(stderr, "\nProblems found whilst installing : package may only be part-installed\n\n");
         exit(1);
       }
-      record_install(clean_src, clean_dest, pkg, version);
+      record_install(relative_path, clean_src, clean_dest, pkg, version);
     }
   }
 
