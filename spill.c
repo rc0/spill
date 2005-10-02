@@ -1454,7 +1454,7 @@ int main (int argc, char **argv)/*{{{*/
   char *relative_path;
   char *conflict_list_path = NULL;
   int do_soft_delete;
-  int do_upgrade;
+  int do_retain;
   int hard_delete;
   char **next_argv;
   int next_argc;
@@ -1484,7 +1484,7 @@ int main (int argc, char **argv)/*{{{*/
   dest = "."; /* pwd by default. */
   bare_args = 0;
   do_soft_delete = 0;
-  do_upgrade = 0;
+  do_retain = 0;
   hard_delete = 0;
   
   ++argv;
@@ -1511,8 +1511,8 @@ int main (int argc, char **argv)/*{{{*/
         opt.force = 1;
       } else if (!strcmp(*argv, "--delete")) {
         do_soft_delete = 1;
-      } else if (!strcmp(*argv, "--upgrade")) {
-        do_upgrade = 1;
+      } else if (!strcmp(*argv, "--retain")) {
+        do_retain = 1;
       } else if (!strcmp(*argv, "--override")) {
         opt.override = 1;
       } else if (!strncmp(*argv,"--conflict-list=", 16)) {
@@ -1546,8 +1546,8 @@ int main (int argc, char **argv)/*{{{*/
           case 'd':
             do_soft_delete = 1;
             break;
-          case 'u':
-            do_upgrade = 1;
+          case 'r':
+            do_retain = 1;
             break;
           case 'o':
             opt.override = 1;
@@ -1642,7 +1642,7 @@ int main (int argc, char **argv)/*{{{*/
     }
 
     if (!opt.dry_run) {
-      if (do_upgrade) {
+      if (!do_retain) {
         if (!opt.quiet) {
           fprintf(stderr, "\nPre-install checks OK, removing old version\n\n");
         }
