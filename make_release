@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+
+$version = shift || die "Usage : $0 <version>\n";
+$subdir = "spill-${version}";
+$here = qx/pwd/;
+chomp $here;
+
+# TODO : needs -s eventually
+system ("git-tag $version");
+die "git-tag failed" if ($? != 0);
+if (-d $subdir) {
+  system ("rm -rf $subdir");
+}
+
+system ("git-tar-tree $version $subdir | tar xf -");
+die "git-tar-tree failed" if ($? != 0);
+
+chdir $subdir;
+
+unlink "make_release";
+open (OUT, ">version.h");
+print OUT "#ifndef PROGRAM_VERSION\n";
+print OUT "#define PROGRAM_VERSION \"${version}\"\n";
+print OUT "#endif\n";
+close OUT;
+
+chdir $here;
+system ("tar cvf - $subdir | gzip -9 > ${subdir}.tar.gz");
+
+
