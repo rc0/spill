@@ -2,8 +2,10 @@
 
 $version = shift || die "Usage : $0 <version>\n";
 $subdir = "spill-${version}";
-$here = qx/pwd/;
-chomp $here;
+
+unless (-d "RELEASES") {
+  mkdir "RELEASES", 0755;
+}
 
 system ("git-tag -s $version");
 die "git-tag failed" if ($? != 0);
@@ -11,9 +13,12 @@ if (-d $subdir) {
   system ("rm -rf $subdir");
 }
 
-system ("git-tar-tree $version $subdir | tar xf -");
+system ("git-tar-tree $version RELEASES/${subdir} | tar xf -");
 die "git-tar-tree failed" if ($? != 0);
 
+chdir "RELEASES";
+$here = qx/pwd/;
+chomp $here;
 chdir $subdir;
 
 unlink "make_release";
