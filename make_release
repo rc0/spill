@@ -5,8 +5,7 @@ $subdir = "spill-${version}";
 $here = qx/pwd/;
 chomp $here;
 
-# TODO : needs -s eventually
-system ("git-tag $version");
+system ("git-tag -s $version");
 die "git-tag failed" if ($? != 0);
 if (-d $subdir) {
   system ("rm -rf $subdir");
@@ -26,5 +25,6 @@ close OUT;
 
 chdir $here;
 system ("tar cvf - $subdir | gzip -9 > ${subdir}.tar.gz");
+system ("gpg -b -a -o ${subdir}-tar-gz-asc.txt ${subdir}.tar.gz");
 
 
