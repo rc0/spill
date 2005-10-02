@@ -1,7 +1,7 @@
-New in version 0.6
-==================
+New in version 0.6.1
+====================
 
-* Add -u/--upgrade option
+* Add -r/--retain option
 
 New in version 0.5
 ==================
