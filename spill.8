@@ -6,7 +6,8 @@
 .TH SPILL 8 "2004"
 .SH NAME
 spill \- segregated package install logical linker
-.SH SYNOPSIS - Installation
+.SH SYNOPSIS
+.SS Installation
 .B spill
 [
 .B \-f
@@ -40,7 +41,7 @@ spill \- segregated package install logical linker
 .I ignore_path...
 ]
 
-.SH SYNOPSIS - Removal
+.SS Removal
 .B spill
 .B -d
 [
@@ -51,16 +52,13 @@ spill \- segregated package install logical linker
 .I link_install_path
 ]
 
-.SH SYNOPSIS - Usage summary
+.SS Usage summary
 .B spill
 .B -h
 
-.SH SYNOPSIS - Display version
+.SS Display version
 .B spill
 .B -V
-
-.sp
-Same again for other options
 
 .SH DESCRIPTION
 .B spill
@@ -82,8 +80,9 @@ The tool can also be used to remove a set of links to a package installed
 elsewhere.
 
 .SH ARGUMENTS
+.TP
 .B tool_install_path
-.sp
+.br
 This is the head of the directory tree at which the package is installed.
 .sp
 If an absolute path is given, absolute symbolic links will be created.
@@ -104,15 +103,15 @@ approach allows
 to auto-detect when an existing package is being upgraded by a newer version,
 and not complain about links being replaced in such circumstances.
 
-.sp
+.TP
 .B link_install_path
-.sp
+.br
 This is the head of the directory tree where the links should be placed.  If
 omitted, it defaults to the current directory.
 
-.sp
+.TP
 .B ignore_path...
-.sp
+.br
 This is a space separated list of paths to ignore in the linking process.  Each
 path is relative to
 .B tool_install_path
@@ -133,9 +132,9 @@ would be invoked like this:
 Note, if one of the ignored relative paths is a directory, everything under
 that directory is ignored too.
 
-.sp
+.TP
 .B -f
-.sp
+.br
 Normally,
 .B spill
 will check that tool_install_path and link_install_path each have at least one
@@ -145,29 +144,29 @@ The
 .B -f
 option allows this checking to be overridden.
 
-.sp
+.TP
 .B -n
-.sp
+.br
 This option does a 'dry-run', i.e. reports on any potential install conflicts
 then stops without actually creating any links.
 
-.sp
+.TP
 .B -q
-.sp
+.br
 This option means 'quiet'.  Only errors will be reported.  Normally, successful
 link creations are reported too.
 
-.sp
+.TP
 .B -u
-.sp
+.br
 This option means 'upgrade'.  When installing links for a package, this option
 causes spill to remove links to an older version of the same package first.
 This is a good idea if the files in the new package have changed their names
 compared to the older version, as it avoids stale links being left around.
 
-.sp
+.TP
 .B -x
-.sp
+.br
 This option means 'expand'.  Suppose a single package called wibble has already
 been linked under /usr/local using 
 .B spill.
@@ -191,9 +190,9 @@ modify the filesystem even if
 .B -n
 is specified.
 
-.sp
+.TP
 .B -o
-.sp
+.br
 This option means 'override'.  If the destination tree contains links that
 conflict with those spill wants to create to link in the new package, normally
 spill will report the conflicts and give up.  If
