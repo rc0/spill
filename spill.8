@@ -52,6 +52,16 @@ spill \- segregated package install logical linker
 .I link_install_path
 ]
 
+.B spill
+.B -D
+[
+.B \-q
+]
+.I package_name
+[
+.I link_install_path
+]
+
 .SS Usage summary
 .B spill
 .B -h
@@ -224,6 +234,49 @@ written to a file.  This can be expanded as the
 argument on another
 .B spill
 run.
+
+.TP
+.B \-d
+.br
+.ns
+.TP
+.B \-\-delete-tree
+.br
+Delete an installation, given the path to the installed tree and the path to the area where
+the symlinks are.
+
+Note that
+.B \-d
+.B does
+.B not
+actually delete the installed software.  It only removes the symlinks that
+point to it.  However, it is useful in the case where you intend to remove the
+installed software in a separate step, and avoids the symlink area being left
+with stale symlinks.
+
+
+.TP
+.B \-D
+.br
+.ns
+.TP
+.B \-\-delete-pkg
+.br
+Delete an installation, given the name of the package and the path to the area
+where the symlinks are.  This relies on the information stored in the 
+.I .spill
+subdirectory of the link area to know what needs to be deleted.
+
+Note that
+.B \-D
+.B does
+.B not
+actually delete the installed software.  It only removes the symlinks that
+point to it.  However, it is useful in the case where you intend to remove the
+installed software in a separate step, and avoids the symlink area being left
+with stale symlinks.
+
+
 
 .SH EXAMPLE
 .sp

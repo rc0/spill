@@ -1463,6 +1463,12 @@ static void usage(char *toolname)/*{{{*/
     "  -q,  --quiet            Be quiet, only show errors\n"
     "<tool_install_path> and <link_install_path> as above.\n"
     "\n"
+    "\n"
+    "Syntax : spill -D [-q] <package_name> <link_install_path>\n"
+    "  -q,  --quiet            Be quiet, only show errors\n"
+    "<link_install_path> as above.\n"
+    "<package_name> is the name of package already symlinked.\n"
+    "\n"
 
     );
 }
