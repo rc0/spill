@@ -1390,6 +1390,34 @@ get_out:
 
 }
 /*}}}*/
+/*{{{ remove_current_install() */
+static void remove_pkg_by_name(const char *dest_path,
+    const char *pkg,
+    struct options *opt)
+{
+  char *linkpath;
+  char target[1024];
+  char *version;
+  int status;
+  linkpath = dfcaten3(dest_path, RECORD_DIR, pkg);
+  status = readlink(linkpath, target, sizeof(target));
+  if (status < 0) {
+    fprintf(stderr, "Failed to read target of <%s> : can't remove old version.\n", linkpath);
+    goto get_out;
+  }
+  target[status] = 0; /* Null terminate */
+  /* Get version */
+  for (version=target; *version; version++) ;
+  for (; version>=target && *version != '/'; version--) ;
+  version += (*version == '/');
+
+  traverse_action(NULL, target, dest_path, pkg, version, "", opt, soft_delete);
+  unlink(linkpath);
+get_out:
+  free(linkpath);
+
+}
+/*}}}*/
 static void usage(char *toolname)/*{{{*/
 {
   fprintf(stderr,
@@ -1451,13 +1479,14 @@ int main (int argc, char **argv)/*{{{*/
   int is_rel_src;
   char *clean_src, *clean_dest;
   int sane_src, sane_dest;
-  char *pkg, *version;
+  char *pkg=NULL, *version=NULL;
   struct options opt;
   int bare_args;
   char *argv0 = argv[0];
-  char *relative_path;
+  char *relative_path = NULL;
   char *conflict_list_path = NULL;
-  int do_soft_delete;
+  int do_tree_delete;
+  int do_pkg_delete;
   int do_retain;
   int hard_delete;
   char **next_argv;
@@ -1487,7 +1516,8 @@ int main (int argc, char **argv)/*{{{*/
   src = NULL; /* required. */
   dest = "."; /* pwd by default. */
   bare_args = 0;
-  do_soft_delete = 0;
+  do_tree_delete = 0;
+  do_pkg_delete = 0;
   do_retain = 0;
   hard_delete = 0;
   
@@ -1513,8 +1543,10 @@ int main (int argc, char **argv)/*{{{*/
         exit(0);
       } else if (!strcmp(*argv, "--force")) {
         opt.force = 1;
-      } else if (!strcmp(*argv, "--delete")) {
-        do_soft_delete = 1;
+      } else if (!strcmp(*argv, "--delete-tree")) {
+        do_tree_delete = 1;
+      } else if (!strcmp(*argv, "--delete-pkg")) {
+        do_pkg_delete = 1;
       } else if (!strcmp(*argv, "--retain")) {
         do_retain = 1;
       } else if (!strcmp(*argv, "--override")) {
@@ -1548,7 +1580,10 @@ int main (int argc, char **argv)/*{{{*/
             opt.force = 1;
             break;
           case 'd':
-            do_soft_delete = 1;
+            do_tree_delete = 1;
+            break;
+          case 'D':
+            do_pkg_delete = 1;
             break;
           case 'r':
             do_retain = 1;
@@ -1594,78 +1629,85 @@ int main (int argc, char **argv)/*{{{*/
   clean_src = cleanup_dir(src);
   clean_dest = cleanup_dir(dest);
 
-  /* See whether src and dest look reasonable. */
-  if (!opt.force) {
-    sane_src = check_sane("source", clean_src);
-    sane_dest = check_sane("destination", clean_dest);
-
-    if (!sane_src || !sane_dest) {
-      exit(1);
-    }
-  }
-
-  if (is_rel_src) {
-    char *canon_src = normalise_dir(src);
-    char *canon_dest = normalise_dir(dest);
-    relative_path = make_rel(canon_dest, canon_src);
-    free(canon_src);
-    free(canon_dest);
+  if (do_pkg_delete) {
+    char *link_area = dest;
+    char *pkg_name = src;
+    remove_pkg_by_name(link_area, pkg_name, &opt);
   } else {
-    relative_path = NULL;
-  }
 
-  /* Extract package and version for new package. */
+    /* See whether src and dest look reasonable. */
+    if (!opt.force) {
+      sane_src = check_sane("source", clean_src);
+      sane_dest = check_sane("destination", clean_dest);
 
-  extract_package_details(clean_src, &pkg, &version);
-
-  if (do_soft_delete) {
-    /* Delete the links to the 'source' package from the destination tree,
-       assuming the 'source' tree still exists intact.  */
-
-    traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, soft_delete);
-
-  } else {
-    /* Normal mode - package installation */
-  
-    if (!opt.quiet) fprintf(stderr, "Run pre-installing check for package <%s>, version <%s>\n", pkg, version);
-
-    if (conflict_list_path) {
-      conflict_file = fopen(conflict_list_path, "w");
-      if (!conflict_file) {
-        fprintf(stderr, "Could not open %s to write conflict list to\n", conflict_list_path);
-      }
-    }
-
-    if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, pre_install)) {
-      fprintf(stderr, "\nPre-install check found problems, exiting\n\n");
-      exit(1);
-    }
-
-    if (conflict_file) {
-      fclose(conflict_file);
-    }
-
-    if (!opt.dry_run) {
-      if (!do_retain) {
-        if (!opt.quiet) {
-          fprintf(stderr, "\nPre-install checks OK, removing old version\n\n");
-        }
-        remove_current_install(NULL, clean_src, clean_dest, pkg, version, "", &opt);
-      }
-      if (!opt.quiet) fprintf(stderr, "\nPre-install checks OK, proceeding to install\n\n");
-      if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, do_install)) {
-        fprintf(stderr, "\nProblems found whilst installing : package may only be part-installed\n\n");
+      if (!sane_src || !sane_dest) {
         exit(1);
       }
-      record_install(relative_path, clean_src, clean_dest, pkg, version);
+    }
+
+    if (is_rel_src) {
+      char *canon_src = normalise_dir(src);
+      char *canon_dest = normalise_dir(dest);
+      relative_path = make_rel(canon_dest, canon_src);
+      free(canon_src);
+      free(canon_dest);
+    } else {
+      relative_path = NULL;
+    }
+
+    /* Extract package and version for new package. */
+
+    extract_package_details(clean_src, &pkg, &version);
+
+    if (do_tree_delete) {
+      /* Delete the links to the 'source' package from the destination tree,
+         assuming the 'source' tree still exists intact.  */
+
+      traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, soft_delete);
+
+    } else {
+      /* Normal mode - package installation */
+
+      if (!opt.quiet) fprintf(stderr, "Run pre-installing check for package <%s>, version <%s>\n", pkg, version);
+
+      if (conflict_list_path) {
+        conflict_file = fopen(conflict_list_path, "w");
+        if (!conflict_file) {
+          fprintf(stderr, "Could not open %s to write conflict list to\n", conflict_list_path);
+        }
+      }
+
+      if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, pre_install)) {
+        fprintf(stderr, "\nPre-install check found problems, exiting\n\n");
+        exit(1);
+      }
+
+      if (conflict_file) {
+        fclose(conflict_file);
+      }
+
+      if (!opt.dry_run) {
+        if (!do_retain) {
+          if (!opt.quiet) {
+            fprintf(stderr, "\nPre-install checks OK, removing old version\n\n");
+          }
+          remove_current_install(NULL, clean_src, clean_dest, pkg, version, "", &opt);
+        }
+        if (!opt.quiet) fprintf(stderr, "\nPre-install checks OK, proceeding to install\n\n");
+        if (traverse_action(relative_path, clean_src, clean_dest, pkg, version, "", &opt, do_install)) {
+          fprintf(stderr, "\nProblems found whilst installing : package may only be part-installed\n\n");
+          exit(1);
+        }
+        record_install(relative_path, clean_src, clean_dest, pkg, version);
+      }
     }
   }
 
   if (relative_path) free(relative_path);
   free(clean_src);
   free(clean_dest);
-  free(pkg);
-  free(version);
+  if (pkg) free(pkg);
+  if (version) free(version);
 
   return 0;
 
