@@ -2,7 +2,7 @@
   spill - segregated package install logical linker
 
  **********************************************************************
- * Copyright (C) Richard P. Curnow  2003, 2004
+ * Copyright (C) Richard P. Curnow  2003, 2004, 2005, 2006
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -1422,7 +1422,7 @@ static void usage(char *toolname)/*{{{*/
 {
   fprintf(stderr,
     "spill version %s - segregated package install logical linker\n"
-    "Copyright (C) Richard P. Curnow  2003, 2004\n"
+    "Copyright (C) Richard P. Curnow  2003-2006\n"
     "\n"
     "spill comes with ABSOLUTELY NO WARRANTY.\n"
     "This is free software, and you are welcome to redistribute it\n"
