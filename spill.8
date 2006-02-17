@@ -185,7 +185,7 @@ older versions.
 .B \-\-expand
 .br
 This option means 'expand'.  Suppose a single package called wibble has already
-been linked under /usr/local using 
+been linked under /usr/local using
 .B spill.
 The directory /usr/local/man would
 probably be linked to something like /apps/wibble/1.0/man.  Now, suppose
@@ -229,7 +229,7 @@ one in the new package is more up to date than the existing one.
 .br
 When there are conflicts between the tool you are trying to install and the
 existing installation, this option allows the list of conflicting links to be
-written to a file.  This can be expanded as the 
+written to a file.  This can be expanded as the
 .I ignore-path
 argument on another
 .B spill
@@ -263,7 +263,7 @@ with stale symlinks.
 .B \-\-delete-pkg
 .br
 Delete an installation, given the name of the package and the path to the area
-where the symlinks are.  This relies on the information stored in the 
+where the symlinks are.  This relies on the information stored in the
 .I .spill
 subdirectory of the link area to know what needs to be deleted.
 
@@ -309,7 +309,7 @@ are : stow, depot, graft, relink
 (Apologies to other programs of this nature that I've missed out.)
 
 .SH AUTHOR
-This version of 
+This version of
 .B spill
 was written by Richard Curnow <rc@rc0.org.uk>
 

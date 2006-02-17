@@ -3,20 +3,20 @@
 
  **********************************************************************
  * Copyright (C) Richard P. Curnow  2003, 2004, 2005, 2006
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- * 
+ *
  **********************************************************************
  */
 
@@ -53,12 +53,12 @@ struct string_node {/*{{{*/
 
 static struct string_node *ignores = NULL;
 static FILE *conflict_file = NULL;
-  
+
 static char *caten(const char *s1, const char *s2)/*{{{*/
-{ 
+{
   int n1, n2, n;
   char *res;
-  
+
   n1 = strlen(s1);
   n2 = strlen(s2);
   n = n1 + n2;
@@ -71,10 +71,10 @@ static char *caten(const char *s1, const char *s2)/*{{{*/
 }
 /*}}}*/
 static char *dfcaten(const char *d, const char *f)/*{{{*/
-{ 
+{
   int nd, nf, n;
   char *res;
-  
+
   nd = strlen(d);
   nf = strlen(f);
   n = nd + nf;
@@ -89,10 +89,10 @@ static char *dfcaten(const char *d, const char *f)/*{{{*/
 /*}}}*/
 static char *dfcaten3(const char *x, const char *y, const char *z)/*{{{*/
 
-{ 
+{
   int nx, ny, nz, n;
   char *res;
-  
+
   nx = strlen(x);
   ny = strlen(y);
   nz = strlen(z);
@@ -247,10 +247,10 @@ static int check_ignore(const char *head, const char *tail)/*{{{*/
   char *path;
   struct string_node *a;
   int result;
-  
+
   /* Early out */
   if (!ignores) return 0;
-  
+
   /* 'head' starts with a '/' that we ignore.  We put a '/' between head and tail.  +1 for the terminating null. */
   len = strlen(head) + strlen(tail) + 1;
   path = new_array(char, len);
@@ -266,7 +266,7 @@ static int check_ignore(const char *head, const char *tail)/*{{{*/
     }
     a = a->next;
   } while (a);
-  
+
   free(path);
   return result;
 }
@@ -296,7 +296,7 @@ enum dest_type {/*{{{*/
                            NOTE .. don't check (dev,inode) to see if it's
                            LINK_EXACT, because the user might want to replace
                            the package with relative links to replace absolute
-                           etc. 
+                           etc.
                            */
   DT_LINK_SAME_OTHER,   /* link to same package, other version */
   DT_LINK_OTHER_DIR,    /* link to directory in something else */
@@ -314,7 +314,7 @@ typedef int (*action_fn)/*{{{*/
 
  const char *full_src_path,
  const char *full_dest_path,
-            
+
  const char *src,
  const char *dest,
  const char *taildir,
@@ -341,7 +341,7 @@ traverse_action(const char *rel_path,
                 action_fn fn);
 
 /*{{{ static enum dest_type find_dest_type*/
-static enum dest_type 
+static enum dest_type
 find_dest_type(const char *full_dest_path,
                const char *full_src_path,
                const char *relative_path,
@@ -363,7 +363,7 @@ find_dest_type(const char *full_dest_path,
   } else {
     src_path = new_string(full_src_path);
   }
-  
+
   if (lstat(full_dest_path, &dsb) < 0) {
     if (errno == ENOENT) {
       result = DT_VOID;
@@ -390,7 +390,7 @@ find_dest_type(const char *full_dest_path,
          * been installed. */
         char *tail_part;
         int tail_len;
-        
+
         linkbuf[link_len] = 0;
         tail_part = dfcaten(taildir, tailfile);
         tail_len = strlen(tail_part);
@@ -450,7 +450,7 @@ find_dest_type(const char *full_dest_path,
 
         free(tail_part);
       }
-      
+
     } else {
       result = DT_OTHER;
     }
@@ -553,12 +553,12 @@ static int do_expand(const char *dir_link, struct options *opt)/*{{{*/
   /* Given the path to a symbolic link that points at a directory, replace that
      link by a directory, and inside that new directory create symbolic links
      that point at each entry in the directory to which the removed link used
-     to point. 
-     
+     to point.
+
      If the existing link was absolute, create absolute links.  Otherwise,
      create relative links.
 
-     Return 1 if an error occurs, 0 otherwise. 
+     Return 1 if an error occurs, 0 otherwise.
      */
 
   char buffer[PATH_MAX];
@@ -585,7 +585,7 @@ static int do_expand(const char *dir_link, struct options *opt)/*{{{*/
            buffer, strerror(errno));
     return 1;
   }
-  
+
   is_absolute = (buffer[0] == '/') ? 1 : 0;
 
   /* TODO */
@@ -639,7 +639,7 @@ static int do_expand(const char *dir_link, struct options *opt)/*{{{*/
       free(target_site);
     }
     free_string_list(sl);
-    
+
   } else {
     printf("!! ERROR Could not open directory <%s> to read contents : %s\n",
            dir_link, strerror(errno));
@@ -689,7 +689,7 @@ pre_install(enum source_type src_type,
   }
 
   /* (otherwise user gets messages twice.) */
-  
+
   switch (src_type) {
   case ST_ERROR:
     fprintf(stderr, "Could not examine source <%s>!\n", src_path);
@@ -816,7 +816,7 @@ pre_install(enum source_type src_type,
           int d = files_differ(full_dest_path, src_path);
           printf("** OVERRIDE <%s> linked to a non-directory in version <%s> of package <%s>%s\n",
                 full_dest_path, other_version, other_pkg,
-                (d == 0) ? " (content identical)" : 
+                (d == 0) ? " (content identical)" :
                 (d == 1) ? " (content differs)" : ""
                 );
           result = 0;
@@ -832,7 +832,7 @@ pre_install(enum source_type src_type,
           int d = files_differ(full_dest_path, src_path);
           printf("** OVERWRITE <%s> linked to something I don't understand%s\n",
                 full_dest_path,
-                (d == 0) ? " (content identical)" : 
+                (d == 0) ? " (content identical)" :
                 (d == 1) ? " (content differs)" : ""
                 );
           result = 0;
@@ -889,12 +889,12 @@ do_install (enum source_type src_type,
 {
 
   /* FIXME : There's lots of common code here that should be made explicitly common */
-  
+
   char *new_tail;
   char *new_relative_path;
   char *linked_path;
   int result;
-  
+
   if (relative_path) {
     char *tail = dfcaten(taildir, tailfile);
     linked_path = caten(relative_path, tail);
@@ -902,7 +902,7 @@ do_install (enum source_type src_type,
   } else {
     linked_path = new_string(full_src_path);
   }
-  
+
   switch (src_type) {
   case ST_ERROR:
     fprintf(stderr, "Could not examine source <%s>!\n", full_src_path);
@@ -1093,7 +1093,7 @@ soft_delete(enum source_type src_type,
   char *new_relative_path;
   char *linked_path;
   int result;
-  
+
   if (relative_path) {
     char *tail = dfcaten(taildir, tailfile);
     linked_path = caten(relative_path, tail);
@@ -1101,7 +1101,7 @@ soft_delete(enum source_type src_type,
   } else {
     linked_path = new_string(full_src_path);
   }
-  
+
   switch (src_type) {
   case ST_ERROR:
     fprintf(stderr, "Could not examine source <%s>!\n", full_src_path);
@@ -1142,7 +1142,7 @@ soft_delete(enum source_type src_type,
         }
         free(linked_path);
         return 0;
-        
+
     }
     break;
 
@@ -1208,7 +1208,7 @@ traverse_action(const char *rel_path,
       char *full_src_path;
       char *full_dest_path;
       char *other_pkg, *other_version;
-      
+
       if (!strcmp(de->d_name, ".")) continue;
       if (!strcmp(de->d_name, "..")) continue;
       if (check_ignore(tail, de->d_name)) continue;
@@ -1259,7 +1259,7 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
 {
   /* Return relative path to get from src to dest. Both are abs. */
   const char *p, *q;
-  
+
   p = src, q = dest;
   while (*p && *q && (*p == *q)) p++, q++;
   if (!*p && !*q) {
@@ -1271,16 +1271,16 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
     int slashes, i;
     int len;
     char *res;
-    
+
     while (*--p != '/') ;
     slashes = 0;
     while (*p) {
       if (*p == '/') slashes++;
       p++;
     }
-    
+
     /* And form result. */
-    
+
     slashes--;
     len = 3*slashes - 1;
     res = new_array(char, len+1);
@@ -1298,7 +1298,7 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
     int slashes, i;
     int len;
     char *res;
-    
+
     while (*--p != '/') ;
     while (*--q != '/') ;
     slashes = 0;
@@ -1306,10 +1306,10 @@ static char *make_rel(const char *src, const char *dest)/*{{{*/
       if (*p == '/') slashes++;
       p++;
     }
-    
+
     /* And form result. */
     q++; /* now points to char beyond slash */
-    
+
     len = 3*slashes + strlen(q);
     res = new_array(char, len+1);
     for (i=0; i<slashes; i++) {
@@ -1355,7 +1355,7 @@ static void record_install(const char *relative_path,
 /*}}}*/
 /*{{{ remove_current_install() */
 static void remove_current_install(const char *relative_path,
-    const char *src_path, 
+    const char *src_path,
     const char *dest_path,
     const char *pkg,
     const char *version,
@@ -1526,7 +1526,7 @@ int main (int argc, char **argv)/*{{{*/
   do_pkg_delete = 0;
   do_retain = 0;
   hard_delete = 0;
-  
+
   ++argv;
   --argc;
   while (argc > 0) {
@@ -1627,7 +1627,7 @@ int main (int argc, char **argv)/*{{{*/
     usage(argv0);
     exit(1);
   }
-  
+
   /* normalise src. */
   is_rel_src = (src[0] == '/') ? 0 : 1;
 
