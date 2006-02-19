@@ -1,3 +1,10 @@
+New in version 0.7
+==================
+
+* -D option to remove the symlinks for a package given just its name
+  and the path to the symlink area.
+* Manpage cleanup
+
 New in version 0.6.1
 ====================
 
