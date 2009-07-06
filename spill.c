@@ -2,7 +2,7 @@
   spill - segregated package install logical linker
 
  **********************************************************************
- * Copyright (C) Richard P. Curnow  2003, 2004, 2005, 2006
+ * Copyright (C) Richard P. Curnow  2003, 2004, 2005, 2006, 2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -251,10 +251,15 @@ static int check_ignore(const char *head, const char *tail)/*{{{*/
   /* Early out */
   if (!ignores) return 0;
 
-  /* 'head' starts with a '/' that we ignore.  We put a '/' between head and tail.  +1 for the terminating null. */
-  len = strlen(head) + strlen(tail) + 1;
+  /* If 'head' starts with a '/', we drop it.  We put a '/' between head and
+   * tail.  */
+  len = strlen(head) + strlen(tail) + 2;
   path = new_array(char, len);
-  strcpy(path, head + 1);
+  if (head[0] == '/') {
+    strcpy(path, head + 1);
+  } else {
+    strcpy(path, head);
+  }
   strcat(path, "/");
   strcat(path, tail);
   result = 0;
