@@ -1,0 +1,18 @@
+spill - segregated package install logical linker
+
+spill is a program for creating set of symbolic links from one directory
+hierarchy which point to corresponding filenames in a separate directory
+hierarchy.  It's primary use is to allow packages built from source to be
+installed in separate directory trees, which are all linked together under a
+common directory tree (e.g. /usr/local) to reduce the length of the PATH
+environment variable.  An example might be:
+
+% tar xzvf foobar-0.1.tar.gz
+% cd foobar-0.1
+% ./configure --prefix=/app/foobar/0.1-1
+% make
+...
+% sudo make install
+% sudo spill /app/foobar/0.1-1 /usr/local
+%
+
