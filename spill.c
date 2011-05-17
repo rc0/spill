@@ -260,7 +260,9 @@ static int check_ignore(const char *head, const char *tail)/*{{{*/
   } else {
     strcpy(path, head);
   }
-  strcat(path, "/");
+  if (head[0] != '\0') {
+    strcat(path, "/");
+  }
   strcat(path, tail);
   result = 0;
   a = ignores;
